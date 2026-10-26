@@ -1,283 +1,320 @@
 # Subarrays
 
-A **subarray** is a **contiguous** part of an array. It is one of the most common building blocks in DSA problems: sums, counts, longest or shortest windows, and maximum or minimum values are all questions about subarrays.
+A **subarray** is a **contiguous** (unbroken) part of an array. Subarrays appear in many LeetCode and competitive programming problems, such as maximum sum, sum equal to `k`, longest or shortest valid segment, and counting segments. This README covers what subarrays are, how to enumerate them, and how to find the **maximum subarray sum** using three approaches of increasing efficiency, ending with **Kadane's Algorithm**.
 
 ---
 
 ## Table of Contents
 
-- [Topic Overview](#topic-overview)
 - [Folder Structure](#folder-structure)
 - [Core Concepts](#core-concepts)
-- [Operations and Complexity](#operations-and-complexity)
+- [Printing All Subarrays](#printing-all-subarrays)
+- [Maximum Subarray Sum](#maximum-subarray-sum)
+- [Operations and Complexity Summary](#operations-and-complexity-summary)
 - [Problem-Solving Approach](#problem-solving-approach)
+- [Edge Cases and Common Mistakes](#edge-cases-and-common-mistakes)
 - [Key Takeaways](#key-takeaways)
-
----
-
-## Topic Overview
-
-### What is a subarray?
-
-A subarray is a sequence of elements that:
-
-1. comes from the original array, and
-2. sits in **consecutive positions**, with no gaps and the original order preserved.
-
-A subarray is fully described by two indices: a **start index** `i` and an **end index** `j` where `0 <= i <= j < n`.
-
-**Example:** for `arr = [1, 2, 3]`, the subarrays are:
-
-| Start | End | Subarray    |
-|:-----:|:---:|-------------|
-| 0     | 0   | `[1]`       |
-| 0     | 1   | `[1, 2]`    |
-| 0     | 2   | `[1, 2, 3]` |
-| 1     | 1   | `[2]`       |
-| 1     | 2   | `[2, 3]`    |
-| 2     | 2   | `[3]`       |
-
-`[1, 3]` is **not** a subarray because index 1 is skipped.
-
-### Why it matters
-
-- Many problems ask for the "best" contiguous segment: maximum sum, longest with a property, shortest with a property, count of segments with a property.
-- Understanding subarrays leads directly to **prefix sums**, **sliding window**, **two pointers**, and **Kadane's algorithm**.
-- The brute-force-to-optimized progression here (`O(n^3)` to `O(n^2)` to better) is a pattern you will repeat in many other topics.
-
-### Main problems it helps solve
-
-- Generating or printing all subarrays.
-- Finding the subarray with the maximum (or minimum) sum.
-- Counting subarrays that satisfy a condition (for example, sum equals `k`).
-- Finding the longest or shortest subarray satisfying a condition.
 
 ---
 
 ## Folder Structure
 
-```text
+```
 print_sub_array.cpp
 max_sub_arrays/
 ├── 1_bruteforce.cpp
-└── 2_optimized.cpp
+├── 2_optimized.cpp
+└── 3_kadanes_algo.cpp
 ```
 
-| Path                            | Purpose                                                      | Time Complexity |
-|---------------------------------|--------------------------------------------------------------|:---------------:|
-| `print_sub_array.cpp`           | Prints all subarrays using brute force                       | `O(n^3)`        |
-| `max_sub_arrays/1_bruteforce.cpp` | Maximum subarray problem, brute-force approach             | `O(n^3)`        |
-| `max_sub_arrays/2_optimized.cpp`  | Maximum subarray problem, optimized approach               | `O(n^2)`        |
+| File | Purpose | Time Complexity |
+|------|---------|-----------------|
+| `print_sub_array.cpp` | Prints all subarrays using brute force | O(n³) |
+| `max_sub_arrays/1_bruteforce.cpp` | Maximum subarray sum, brute force | O(n³) |
+| `max_sub_arrays/2_optimized.cpp` | Maximum subarray sum, optimized | O(n²) |
+| `max_sub_arrays/3_kadanes_algo.cpp` | Maximum subarray sum using Kadane's Algorithm | O(n) |
 
-The `max_sub_arrays/` folder is numbered to show the learning order: start with the simplest correct solution, then improve it.
+The files in `max_sub_arrays/` are numbered so you can read them in order and see how the solution improves from O(n³) to O(n²) to O(n).
 
 ---
 
 ## Core Concepts
 
-### 1. Subarray vs. Subsequence vs. Subset
+### What Is a Subarray?
 
-These three terms are often confused.
+A subarray is a sequence of elements that:
 
-| Term            | Contiguous? | Order preserved? | Example from `[1, 2, 3]` |
-|-----------------|:-----------:|:----------------:|--------------------------|
-| **Subarray**    | Yes         | Yes              | `[2, 3]`                 |
-| **Subsequence** | No          | Yes              | `[1, 3]`                 |
-| **Subset**      | No          | Not required     | `{3, 1}`                 |
+- come from the original array,
+- are **next to each other** (no gaps),
+- keep the **original order**.
 
-**Rule:** every subarray is a subsequence, but not every subsequence is a subarray.
+For the array `[1, 2, 3]`, the non-empty subarrays are:
 
-### 2. How many subarrays does an array have?
+```
+[1]  [2]  [3]  [1, 2]  [2, 3]  [1, 2, 3]
+```
 
-For an array of size `n`:
+`[1, 3]` is **not** a subarray because `2` is skipped.
 
-- Subarrays of length 1: `n`
-- Subarrays of length 2: `n - 1`
-- ...
-- Subarrays of length `n`: `1`
+### Subarray vs Subsequence vs Subset
 
-Total = `n + (n-1) + ... + 1` = **`n(n + 1) / 2`**, which is `O(n^2)`.
+| Term | Contiguous? | Order kept? | Count for array of size `n` |
+|------|-------------|-------------|-----------------------------|
+| **Subarray** | Yes | Yes | n(n + 1) / 2 (non-empty) |
+| **Subsequence** | No | Yes | 2ⁿ (including empty) |
+| **Subset** | No | Not required | 2ⁿ (including empty) |
 
-| `n` | Number of subarrays |
-|:---:|:-------------------:|
-| 3   | 6                   |
-| 5   | 15                  |
-| 10  | 55                  |
-| 1000 | 500,500            |
+Many beginners mix these up. If a problem says "subarray", **the elements must be adjacent**.
 
-**Why this matters:** any algorithm that looks at every subarray *individually* is at least `O(n^2)`. To go faster, you must avoid examining every subarray.
+### Defining a Subarray
 
-### 3. Identifying a subarray with two indices
+Every subarray is fully described by two indices:
 
-Every subarray corresponds to one pair `(i, j)` with `i <= j`.
+- `start` (`i`): index of the first element
+- `end` (`j`): index of the last element
 
-- Outer loop picks the **start** `i`.
-- Inner loop picks the **end** `j`.
-- The elements from `i` to `j` (inclusive) form the subarray.
+with `0 ≤ i ≤ j ≤ n - 1`. Its **length** is `j - i + 1`.
 
-This `(start, end)` view is the foundation of both files in this folder.
+### Counting Subarrays
 
-### 4. Length of a subarray
+- For each start index `i`, the end index `j` can be any of `i, i+1, ..., n-1`, which gives `n - i` choices.
+- Total = n + (n−1) + ... + 1 = **n(n + 1) / 2**, which is O(n²).
 
-The length of the subarray from `i` to `j` (inclusive) is **`j - i + 1`**. Off-by-one mistakes here are very common.
+This is the key fact behind all the complexities below: there are **O(n²) subarrays**, and doing O(n) work on each one costs O(n³).
 
-### 5. Empty subarray
+### Subarray Sum
 
-Some problems allow an empty subarray (sum `0`), others require at least one element. **Always check the problem statement.** This changes the answer when all elements are negative (see [Edge Cases](#edge-cases)).
+The **sum** of a subarray is the total of its elements. Most subarray problems ask you to compute, compare, or count sums over many subarrays efficiently.
 
 ---
 
-## Operations and Complexity
+## Printing All Subarrays
 
-### 1. Printing all subarrays (`print_sub_array.cpp`)
+**File:** `print_sub_array.cpp` (brute force, O(n³))
 
-**Idea:** use three nested loops.
+### Approach
 
-1. Outer loop: choose the start index `i`.
-2. Middle loop: choose the end index `j`.
-3. Inner loop: print every element from `i` to `j`.
+1. Pick every possible **start** index `i` from `0` to `n - 1`.
+2. For each `i`, pick every possible **end** index `j` from `i` to `n - 1`.
+3. For each pair `(i, j)`, print the elements from index `i` to index `j`.
 
-**Complexity:**
+### Why O(n³)?
 
-| Measure | Value    | Reason                                                              |
-|---------|----------|---------------------------------------------------------------------|
-| Time    | `O(n^3)` | `O(n^2)` subarrays, and printing each one costs up to `O(n)`        |
-| Space   | `O(1)`   | No extra storage beyond loop variables (output not counted)         |
+- Two loops choose `(i, j)`, giving O(n²) subarrays.
+- Printing one subarray takes up to O(n) time.
+- Total: O(n²) × O(n) = **O(n³)**.
 
-**Important:** the total number of elements printed across all subarrays is `n(n+1)(n+2)/6`, which is `Θ(n^3)`. So **`O(n^3)` is unavoidable when you must print every subarray**. There is no faster way, because the output itself is that large. Optimization only helps when you need a *computed answer* (like a maximum) instead of the full output.
+The exact total number of elements printed is n(n + 1)(n + 2) / 6, which grows as n³. Since the **output itself** has this size, printing all subarrays **cannot be done faster than O(n³)**. This is different from the maximum-sum problem below, where we only need one number and can do much better.
 
-### 2. Maximum subarray sum
+### Space Complexity
 
-**Problem:** given an array of integers (possibly negative), find the largest sum of any non-empty subarray.
+O(1) extra space (no additional data structures are needed beyond the loop variables).
 
-#### Approach 1: Brute force (`max_sub_arrays/1_bruteforce.cpp`)
+---
 
-**Idea:** for every pair `(i, j)`, compute the sum of elements from `i` to `j` with a separate loop, and keep the maximum.
+## Maximum Subarray Sum
 
-| Measure | Value    | Reason                                                  |
-|---------|----------|---------------------------------------------------------|
-| Time    | `O(n^3)` | `O(n^2)` subarrays, each sum takes up to `O(n)`         |
-| Space   | `O(1)`   |                                                         |
+**Problem:** Given an array of integers (which may include negative numbers), find the **largest sum** among all non-empty subarrays.
 
-**Weakness:** the sum of `[i..j]` is recomputed from scratch every time, even though it overlaps heavily with the previous sum.
+**Example:** `[-2, 1, -3, 4, -1, 2, 1, -5, 4]` → answer is **6**, from the subarray `[4, -1, 2, 1]`.
 
-#### Approach 2: Optimized (`max_sub_arrays/2_optimized.cpp`)
+The folder `max_sub_arrays/` contains three solutions of increasing efficiency.
 
-**Key observation:** the sum of `[i..j]` equals the sum of `[i..j-1]` plus `arr[j]`. There is no need to re-add everything.
+### Approach 1: Brute Force
 
-So for a fixed start `i`, extend the end `j` one step at a time and **update a running sum in `O(1)`**. (An equivalent way to get `O(1)` range sums is **prefix sums**.)
+**File:** `max_sub_arrays/1_bruteforce.cpp`
 
-| Measure | Value    | Reason                                                  |
-|---------|----------|---------------------------------------------------------|
-| Time    | `O(n^2)` | `O(n^2)` subarrays, each sum obtained in `O(1)`         |
-| Space   | `O(1)`   | Running sum only (prefix sums would use `O(n)`)         |
+**Idea:** Check every subarray, compute its sum from scratch, and keep the largest.
 
-#### Beyond this folder: Kadane's algorithm
+1. Loop over every start index `i`.
+2. Loop over every end index `j ≥ i`.
+3. Add up all elements from `i` to `j` (a third loop).
+4. Update the answer if this sum is larger.
 
-> Not part of the current files, but it is the standard next step.
+| Metric | Value |
+|--------|-------|
+| Time | **O(n³)** |
+| Space | O(1) |
 
-**Kadane's algorithm** solves maximum subarray sum in **`O(n)` time and `O(1)` space**. The idea: at each index, decide whether the best subarray ending here **extends the previous one** or **starts fresh** at this element. Use it whenever `n` is too large for `O(n^2)`.
+**Why it is slow:** The sum of `[i..j]` is recomputed from scratch each time, even though it overlaps heavily with the previous subarray's sum.
 
-### 3. Comparison
+### Approach 2: Optimized (O(n²))
 
-| Approach                    | Time     | Space  | Practical limit for `n` (about 1 second) |
-|-----------------------------|:--------:|:------:|------------------------------------------|
-| Brute force                 | `O(n^3)` | `O(1)` | up to roughly 300 to 500                 |
-| Running sum / prefix sum    | `O(n^2)` | `O(1)` or `O(n)` | up to roughly 10^4              |
-| Kadane's algorithm          | `O(n)`   | `O(1)` | 10^5, 10^6 and beyond                    |
+**File:** `max_sub_arrays/2_optimized.cpp`
 
-The limits are rough rules of thumb based on about `10^8` simple operations per second.
+**Idea:** Avoid recomputing the sum. The sum of `[i..j]` is the sum of `[i..j-1]` **plus** the element at `j`. So, for a fixed start `i`, keep a **running sum** as `j` moves right.
+
+A common alternative that reaches the same O(n²) bound is **prefix sums**: precompute `prefix[k]` as the sum of the first `k` elements, then the sum of `[i..j]` is `prefix[j+1] - prefix[i]` in O(1).
+
+Both methods remove the innermost loop.
+
+| Metric | Running sum | Prefix sums |
+|--------|-------------|-------------|
+| Time | **O(n²)** | O(n²) (O(n) to build, O(n²) to check all pairs) |
+| Space | O(1) | O(n) |
+
+**Takeaway:** If a problem needs the sum of many subarrays, reuse previous work instead of recomputing.
+
+### Approach 3: Kadane's Algorithm
+
+**File:** `max_sub_arrays/3_kadanes_algo.cpp`
+
+**Idea:** Scan the array once. At each index, decide the best subarray **ending exactly at that index**.
+
+Define:
+
+- `current` = the best (maximum) sum of a subarray that **ends at the current index**.
+- `best` = the best sum seen so far across all indices.
+
+At each element `x`:
+
+- **Extend** the previous subarray: `current + x`, or
+- **Start fresh** from this element: `x`.
+
+So: **`current = max(x, current + x)`**, then **`best = max(best, current)`**.
+
+Equivalent view: if `current` becomes negative, it can only hurt future sums, so **drop it and start a new subarray** at the next element.
+
+#### Dry Run
+
+Array: `[-2, 1, -3, 4, -1, 2, 1, -5, 4]`
+
+| Index | x | current = max(x, current + x) | best |
+|-------|----|-------------------------------|------|
+| 0 | -2 | -2 | -2 |
+| 1 | 1 | 1 | 1 |
+| 2 | -3 | -2 | 1 |
+| 3 | 4 | 4 | 4 |
+| 4 | -1 | 3 | 4 |
+| 5 | 2 | 5 | 5 |
+| 6 | 1 | 6 | **6** |
+| 7 | -5 | 1 | 6 |
+| 8 | 4 | 5 | 6 |
+
+Answer: **6**.
+
+| Metric | Value |
+|--------|-------|
+| Time | **O(n)** (one pass) |
+| Space | **O(1)** |
+
+#### Why Kadane's Algorithm Is Correct
+
+Any maximum subarray ends at some index. For that index, the best subarray ending there either contains only the element itself or extends the best subarray ending at the previous index. Taking the maximum over all ending indices therefore covers every candidate.
+
+#### Initialization (Important)
+
+- Initialize `current` and `best` with the **first element**, **not** `0`.
+- Initializing `best` to `0` is wrong when **all elements are negative** (it would wrongly return `0`, which corresponds to an empty subarray).
+- If your problem allows an **empty subarray**, then `0` is a valid starting answer and the minimum result is `0`.
+
+---
+
+## Operations and Complexity Summary
+
+Let `n` be the array size.
+
+| Task | Method | Time | Extra Space |
+|------|--------|------|-------------|
+| Print all subarrays | Nested loops + print | O(n³) | O(1) |
+| Count all non-empty subarrays | Formula n(n + 1) / 2 | O(1) | O(1) |
+| Max subarray sum | Brute force | O(n³) | O(1) |
+| Max subarray sum | Running sum / prefix sum | O(n²) | O(1) / O(n) |
+| Max subarray sum | **Kadane's Algorithm** | **O(n)** | **O(1)** |
+
+**Practical meaning:** For `n = 10⁵`, O(n²) means about 10¹⁰ operations (too slow for typical time limits), while O(n) means about 10⁵ operations (instant). Common contest limits allow roughly 10⁸ simple operations per second, so:
+
+| Constraint on `n` | Feasible approach |
+|-------------------|-------------------|
+| n ≤ ~200 | O(n³) |
+| n ≤ ~5,000 | O(n²) |
+| n ≥ 10⁵ | O(n) or O(n log n) |
 
 ---
 
 ## Problem-Solving Approach
 
-### How to recognize a subarray problem
+### How to Recognize a Subarray Problem
 
-Look for these phrases:
+Look for keywords such as:
 
-- "contiguous", "consecutive", "segment", "subarray", "substring" (same idea for strings)
+- "contiguous", "consecutive", "segment", "subarray", "window", "substring" (for strings)
 - "maximum / minimum sum of a contiguous part"
-- "longest / shortest segment such that..."
-- "number of subarrays with..."
+- "longest / shortest segment such that ..."
+- "number of subarrays with ..."
 
-If the problem says **subsequence** or **subset**, the elements do *not* need to be adjacent, so it is a different problem (usually DP or backtracking).
+### Choosing a Technique
 
-### Standard progression
+| Problem Type | Technique to Consider |
+|--------------|-----------------------|
+| Maximum / minimum subarray sum | **Kadane's Algorithm** |
+| Many range-sum queries | **Prefix sums** (O(1) per query after O(n) setup) |
+| Fixed-size subarray (e.g., size `k`) | **Sliding window** |
+| Longest / shortest subarray with a condition, **all elements non-negative** | **Sliding window / two pointers** |
+| Subarray sum equals `k`, **array may contain negatives** | **Prefix sums + hash map** |
+| Maximum subarray product | Track both the maximum and minimum product ending at each index (a negative number can flip them) |
+| Subarray on a circular array | Combine Kadane's (max) with total sum minus min subarray |
+| Small `n` or need to list every subarray | Brute force with nested loops |
 
-1. **Write the brute force.** Loop over all `(i, j)` pairs and compute the answer for each. Confirm correctness first.
-2. **Find repeated work.** Usually the sum or property of `[i..j]` can be built from `[i..j-1]`.
-3. **Remove the repeated work.** Use a running sum or prefix sums to get `O(n^2)`.
-4. **Remove a whole loop.** Ask whether you really need to try every start index. Techniques that do this:
+### Useful Observations
 
-| Situation                                          | Technique                                |
-|----------------------------------------------------|------------------------------------------|
-| Maximum subarray sum, negatives allowed            | Kadane's algorithm                       |
-| Many range-sum queries                             | Prefix sums                              |
-| All elements non-negative, window with sum condition | Sliding window / two pointers          |
-| Count subarrays with sum exactly `k` (negatives allowed) | Prefix sums with a hash map        |
+- A subarray is defined by `(start, end)`. Many solutions enumerate one endpoint and handle the other efficiently.
+- **Reuse computations:** extending a subarray by one element changes its sum by exactly that element.
+- **Prefix-sum identity:** sum of `[i..j]` = `prefix[j+1] - prefix[i]`.
+- **Kadane's rule:** a negative running sum is never worth keeping when extending to the right.
+- Sliding window works for sum conditions **only when elements are non-negative**. With negative numbers, shrinking or growing the window no longer changes the sum in a predictable direction.
 
-### Choosing an approach
+### Getting the Subarray Itself (Not Just the Sum)
 
-- **Small `n` (about 500 or less):** brute force is acceptable and good for verifying other solutions.
-- **Medium `n` (about 10^4):** `O(n^2)` is usually fine.
-- **Large `n` (10^5 or more):** you need `O(n)` or `O(n log n)`.
+To also return the indices of the best subarray in Kadane's Algorithm:
 
-Always read the constraints **before** choosing an approach.
+- Track a temporary `start` index that resets to the current index whenever you start fresh (i.e., when the element alone is better than extending).
+- Whenever `best` improves, record `start` as the answer's start and the current index as its end.
 
-### Edge Cases
+---
 
-- **Single element array:** the only subarray is the element itself.
-- **All negative numbers:** the maximum subarray sum is the **largest (least negative) single element**, not `0`, unless an empty subarray is allowed. Initializing the maximum to `0` is a classic bug.
-- **All positive numbers:** the whole array is the maximum subarray.
-- **Zeros in the array:** they never reduce a sum, so check that tie-breaking rules (longest, shortest, first) match the problem.
-- **Empty array:** check whether the input can be empty.
+## Edge Cases and Common Mistakes
 
-### Common Mistakes
+**Edge cases**
 
-| Mistake                                              | Fix                                                                 |
-|------------------------------------------------------|---------------------------------------------------------------------|
-| Confusing subarray with subsequence                  | Subarrays must be contiguous                                        |
-| Off-by-one in loop bounds or length (`j - i + 1`)    | Use inclusive `i..j` consistently                                   |
-| Initializing max to `0` or `INT_MIN` carelessly      | Initialize with the first element, or a safe minimum value          |
-| Integer overflow in sums                             | Use a 64-bit type when `n * max(value)` can exceed about `2 * 10^9` |
-| Resetting the running sum in the wrong place         | Reset it when the start index changes                               |
-| Assuming `O(n^3)` printing can be optimized          | The output size itself is `Θ(n^3)`                                  |
-| Using sliding window when negatives are present      | Sliding window on sums needs non-negative values                    |
+- **All negative numbers:** the answer is the **largest (least negative) single element**, not `0`.
+- **Single element:** the only subarray is the element itself.
+- **All positive numbers:** the whole array is the answer.
+- **Array with zeros:** zeros are fine, but be careful if the problem asks for the longest or shortest subarray, since zeros can extend length without changing the sum.
+- **Empty array:** check the problem statement for expected behavior.
+- **Multiple subarrays with the same maximum sum:** check whether the problem wants the first, the longest, or any.
 
-### Related Topics
+**Common mistakes**
 
-- Prefix sums
-- Sliding window
-- Two pointers
-- Kadane's algorithm
-- Dynamic programming (for subsequence problems)
+- Initializing the maximum to `0` instead of the first element (or `INT_MIN`) when the empty subarray is not allowed.
+- **Integer overflow:** sums of many large values can exceed the 32-bit range. Use a 64-bit type for sums when `n` or element values are large.
+- Initializing the answer to a value that is not small enough (e.g., a too-small sentinel like `-1000`), when elements can be very negative.
+- Confusing subarray (contiguous) with subsequence (not contiguous).
+- Using sliding window when the array contains negative numbers.
+- Off-by-one errors in loop bounds (`j` should run from `i` to `n - 1`) and in the prefix-sum formula (`prefix[j+1] - prefix[i]`).
+- Forgetting that the total number of subarrays is O(n²), so printing all of them is inherently O(n³).
 
 ---
 
 ## Key Takeaways
 
-- A subarray is **contiguous**; a subsequence is not.
-- An array of size `n` has **`n(n+1)/2`** subarrays.
-- Every subarray is defined by a **start and end index** `(i, j)`.
-- Printing all subarrays is **`Θ(n^3)`** because of output size and cannot be improved.
-- Brute-force maximum subarray sum is `O(n^3)`. Reusing the previous sum brings it to **`O(n^2)`**.
-- Kadane's algorithm brings it to **`O(n)`** and is the standard solution.
-- Check for **all-negative arrays**, **overflow**, and whether an **empty subarray** is allowed.
+- A subarray is **contiguous**; an array of size `n` has **n(n + 1) / 2** non-empty subarrays.
+- Printing all subarrays is O(n³), and that cannot be improved because the output itself is that large.
+- Max subarray sum has three levels of solution:
+  1. **Brute force:** O(n³), recompute every sum.
+  2. **Optimized:** O(n²), reuse the running sum or use prefix sums.
+  3. **Kadane's Algorithm:** O(n) time, O(1) space.
+- **Kadane's rule:** `current = max(x, current + x)`, `best = max(best, current)`.
+- Always handle the **all-negative** case by initializing with the first element.
+- Use a 64-bit integer type when sums can be large.
 
 ### Quick Reference
 
-| Task                                  | Time     | Space  | File / Technique                     |
-|---------------------------------------|:--------:|:------:|--------------------------------------|
-| Print all subarrays                   | `O(n^3)` | `O(1)` | `print_sub_array.cpp`                |
-| Max subarray sum, brute force         | `O(n^3)` | `O(1)` | `max_sub_arrays/1_bruteforce.cpp`    |
-| Max subarray sum, optimized           | `O(n^2)` | `O(1)` | `max_sub_arrays/2_optimized.cpp`     |
-| Max subarray sum, best known approach | `O(n)`   | `O(1)` | Kadane's algorithm (not in folder)   |
-
-### Checklist Before Submitting
-
-- [ ] Did I confirm the elements must be contiguous?
-- [ ] Did I check whether an empty subarray is allowed?
-- [ ] Did I handle the all-negative case?
-- [ ] Is my sum type large enough to avoid overflow?
-- [ ] Does my time complexity fit the constraints?
+| Question | Answer |
+|----------|--------|
+| Number of non-empty subarrays? | n(n + 1) / 2 |
+| Sum of `[i..j]` using prefix sums? | `prefix[j+1] - prefix[i]` |
+| Fastest max subarray sum? | Kadane's Algorithm, O(n) |
+| Max subarray sum, all elements negative? | The largest single element |
+| Subarray sum equals `k` with negatives? | Prefix sums + hash map |
+| Fixed-size window? | Sliding window |
